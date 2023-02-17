@@ -100,62 +100,54 @@ enum SpeedType
     _SPEED_TYPES
 };
 
-enum TramEnum
-{
-    TRAM1,
-    _TRAMS
-};
 
-volatile int tramSpeedConfiguration[_SPEED_TYPES][_TRAMS];
+volatile int tramSpeedConfiguration[_SPEED_TYPES];
 
 bool stationLock[DIRECTIONS] = {false, false};
-static volatile bool isAccelerating[_TRAMS];
-static volatile bool accelerateOverride[_TRAMS];
-int tramCurrentSpeedType[_TRAMS];
-int tramCurrentDirection[_TRAMS] = {STOP};
-int tramCurrentSpeed[_TRAMS] = {0};
+static volatile bool isAccelerating;
+static volatile bool accelerateOverride;
+int tramCurrentSpeedType;
+int tramCurrentDirection = STOP;
+int tramCurrentSpeed = 0;
 
-int tramSpeedInputChannel[_SPEED_TYPES][_TRAMS] = {1, 0};
+int tramSpeedInputChannel[_SPEED_TYPES] = {1, 0};
 
-int tramOutputSpeedControlPin[_TRAMS] = {
-    10};
+int tramOutputSpeedControlPin = 10;
 
-int tramDirectionPins[_TRAMS][DIRECTIONS] = {
-    {9, 8}};
+int tramDirectionPins[DIRECTIONS] = {9, 8};
 
-int tramLEDPin[_TRAMS][DIRECTIONS] = {
-    {7, 6}};
-PCA9635_COLOR tramLEDColor[_TRAMS][DIRECTIONS] = {
-    {RED, YELLOW}};
+int tramLEDPin[DIRECTIONS] = {7, 6};
 
-void accelerate(int tram, int type, int ms)
+PCA9635_COLOR tramLEDColor[DIRECTIONS] = {RED, YELLOW};
+
+void accelerate(int type, int ms)
 {
-    if (isAccelerating[tram])
+    if (isAccelerating)
     {
-        printf("accelerate:: tram=%d requested acceleration, but was already accelerating\n", tram);
-        accelerateOverride[tram] = true;
-        while (isAccelerating[tram])
+        printf("accelerate:: requested acceleration, but was already accelerating\n");
+        accelerateOverride = true;
+        while (isAccelerating)
             usleep(100);
         return;
     }
-    isAccelerating[tram] = true;
+    isAccelerating = true;
 
-    int desiredSpeed = (type == STOP) ? 0 : tramSpeedConfiguration[type][tram];
+    int desiredSpeed = (type == STOP) ? 0 : tramSpeedConfiguration[type];
     int vector;
     int stepDelay = 0;
 
-    printf("accelerate:: tram=%d; cst=%d, rst=%d, currentSpeed=%d, desiredSpeed=%d, delay=%d; ",
-           tram, tramCurrentSpeedType[tram], type, tramCurrentSpeed[tram], desiredSpeed, ms);
+    printf("accelerate:: cst=%d, rst=%d, currentSpeed=%d, desiredSpeed=%d, delay=%d; ",
+            tramCurrentSpeedType, type, tramCurrentSpeed, desiredSpeed, ms);
 
-    tramCurrentSpeedType[tram] = type;
+    tramCurrentSpeedType = type;
 
-    if (desiredSpeed == tramCurrentSpeed[tram])
+    if (desiredSpeed == tramCurrentSpeed)
     {
-        isAccelerating[tram] = false;
+        isAccelerating = false;
         printf("no change\n");
         return;
     }
-    if (desiredSpeed > tramCurrentSpeed[tram])
+    if (desiredSpeed > tramCurrentSpeed)
     {
         vector = 1;
     }
@@ -166,45 +158,45 @@ void accelerate(int tram, int type, int ms)
 
     if (ms > 0)
     {
-        accelerateOverride[tram] = false;
-        stepDelay = 1000.0 * ms / abs(tramCurrentSpeed[tram] - desiredSpeed);
+        accelerateOverride = false;
+        stepDelay = 1000.0 * ms / abs(tramCurrentSpeed - desiredSpeed);
     }
     else
     {
-        accelerateOverride[tram] = true;
-        vector = desiredSpeed - tramCurrentSpeed[tram];
+        accelerateOverride = true;
+        vector = desiredSpeed - tramCurrentSpeed;
     }
 
     printf(" vecotor = %2d, step delay=%d\n", vector, stepDelay);
 
-    while (!accelerateOverride[tram] && tramCurrentSpeed[tram] != desiredSpeed)
+    while (!accelerateOverride && tramCurrentSpeed != desiredSpeed)
     {
-        tramCurrentSpeed[tram] += vector;
-        wiringPiI2CWriteReg8(pca9635Handle, 0x02 + tramOutputSpeedControlPin[tram], 255 - tramCurrentSpeed[tram]);
-        if (stepDelay > 0 && tramCurrentSpeed[tram] != desiredSpeed && !accelerateOverride[tram])
+        tramCurrentSpeed += vector;
+        wiringPiI2CWriteReg8(pca9635Handle, 0x02 + tramOutputSpeedControlPin, 255 - tramCurrentSpeed);
+        if (stepDelay > 0 && tramCurrentSpeed != desiredSpeed && !accelerateOverride)
         {
             usleep(stepDelay);
         }
     }
 
-    if (accelerateOverride[tram])
+    if (accelerateOverride)
     {
-        tramCurrentSpeed[tram] = desiredSpeed;
-        wiringPiI2CWriteReg8(pca9635Handle, 0x02 + tramOutputSpeedControlPin[tram], 255 - tramCurrentSpeed[tram]);
-        accelerateOverride[tram] = false;
+        tramCurrentSpeed = desiredSpeed;
+        wiringPiI2CWriteReg8(pca9635Handle, 0x02 + tramOutputSpeedControlPin, 255 - tramCurrentSpeed);
+        accelerateOverride = false;
     }
 
-    isAccelerating[tram] = false;
+    isAccelerating = false;
 }
 
-void moveTram(int tram, int direction)
+void moveTram(int direction)
 {
-    int forwardPin = tramDirectionPins[tram][WEST];
-    int reversePin = tramDirectionPins[tram][EAST];
+    int forwardPin = tramDirectionPins[WEST];
+    int reversePin = tramDirectionPins[EAST];
 
     for (int d = EAST; d <= WEST; ++d)
     {
-        pca9635SetBrightness(pca9635Handle, tramLEDPin[tram][d], tramLEDColor[tram][d], 0);
+        pca9635SetBrightness(pca9635Handle, tramLEDPin[d], tramLEDColor[d], 0);
     }
 
     switch (direction)
@@ -213,7 +205,7 @@ void moveTram(int tram, int direction)
         if (isRunning)
         {
             updateClockMessage("moving east");
-            pca9635SetBrightness(pca9635Handle, tramLEDPin[tram][direction], tramLEDColor[tram][direction], 100);
+            pca9635SetBrightness(pca9635Handle, tramLEDPin[direction], tramLEDColor[direction], 100);
             pca9635DigitalWrite(pca9635Handle, reversePin, LOW);
             pca9635DigitalWrite(pca9635Handle, forwardPin, HIGH);
         }
@@ -222,7 +214,7 @@ void moveTram(int tram, int direction)
         if (isRunning)
         {
             updateClockMessage("moving west");
-            pca9635SetBrightness(pca9635Handle, tramLEDPin[tram][direction], tramLEDColor[tram][direction], 100);
+            pca9635SetBrightness(pca9635Handle, tramLEDPin[direction], tramLEDColor[direction], 100);
             pca9635DigitalWrite(pca9635Handle, forwardPin, LOW);
             pca9635DigitalWrite(pca9635Handle, reversePin, HIGH);
         }
@@ -232,14 +224,14 @@ void moveTram(int tram, int direction)
         pca9635DigitalWrite(pca9635Handle, forwardPin, LOW);
         pca9635DigitalWrite(pca9635Handle, reversePin, LOW);
     }
-    tramCurrentDirection[tram] = direction;
+    tramCurrentDirection = direction;
 
     if (direction == STOP || !isRunning)
     {
         updateClockMessage("decelerating");
-        tramCurrentSpeed[tram] = 0;
-        accelerateOverride[tram];
-        accelerate(tram, STOP, 0);
+        tramCurrentSpeed = 0;
+        accelerateOverride;
+        accelerate(STOP, 0);
         strcpy(clockMessage, "stopped");
     }
 }
@@ -260,7 +252,7 @@ long long updateLastActivation(int key)
 void crossingBell()
 {
     char tmpstr[128];
-    sprintf(tmpstr, "/home/wryan/bin/crossingbell.sh %3.2f %.3f", crossingBellVolume, crossingBellDuration);
+    sprintf(tmpstr, "%s/bin/crossingbell.sh %3.2f %.3f", getenv("USERHOME"), crossingBellVolume, crossingBellDuration);
     system(tmpstr);
 }
 
@@ -316,11 +308,11 @@ void crossingActivated(MCP23x17_GPIO gpio, int value)
         pthread_exit(NULL);
     }
 
-    if (gpio == eastCrossingPin && tramCurrentDirection[TRAM1] == WEST)
+    if (gpio == eastCrossingPin && tramCurrentDirection == WEST)
     {
         crossingGateTrigger = 0; // approaching
     }
-    if (gpio == westCrossingPin && tramCurrentDirection[TRAM1] == EAST)
+    if (gpio == westCrossingPin && tramCurrentDirection == EAST)
     {
         crossingGateTrigger = 0; // approaching
     }
@@ -362,7 +354,7 @@ void fullStop()
     crossingGateTrigger = 0;
     showCrossingSignal = true;
 
-    moveTram(TRAM1, STOP);
+    moveTram(STOP);
 }
 
 bool startStopButtonAction(char *message)
@@ -400,7 +392,7 @@ bool startStopButtonAction(char *message)
     lcdLED(1);
     delay(100);
 
-    int direction = tramCurrentDirection[TRAM1];
+    int direction = tramCurrentDirection;
 
     if (direction == STOP)
     {
@@ -425,8 +417,8 @@ bool startStopButtonAction(char *message)
         direction = EAST;
     }
 
-    moveTram(TRAM1, direction);
-    accelerate(TRAM1, NORMAL, 100);
+    moveTram(direction);
+    accelerate(NORMAL, 100);
     //
     return true;
 }
@@ -459,28 +451,28 @@ void approachActivated(MCP23x17_GPIO gpio, int value)
     bool approaching = true;
     char direction[32];
 
-    if (gpio == eastApproach2Pin && tramCurrentDirection[TRAM1] == WEST)
+    if (gpio == eastApproach2Pin && tramCurrentDirection == WEST)
     {
         approaching = false;
     }
-    if (gpio == eastApproach1Pin && tramCurrentDirection[TRAM1] == WEST)
+    if (gpio == eastApproach1Pin && tramCurrentDirection == WEST)
     {
         approaching = false;
     }
-    if (gpio == westApproachPin && tramCurrentDirection[TRAM1] == EAST)
+    if (gpio == westApproachPin && tramCurrentDirection == EAST)
     {
         approaching = false;
     }
 
-    if (gpio == eastApproach1Pin && tramCurrentDirection[TRAM1] == EAST)
+    if (gpio == eastApproach1Pin && tramCurrentDirection == EAST)
     {
         strcpy(direction, "east1");
     }
-    if (gpio == eastApproach2Pin && tramCurrentDirection[TRAM1] == EAST)
+    if (gpio == eastApproach2Pin && tramCurrentDirection == EAST)
     {
         strcpy(direction, "east2");
     }
-    if (gpio == westApproachPin && tramCurrentDirection[TRAM1] == WEST)
+    if (gpio == westApproachPin && tramCurrentDirection == WEST)
     {
         strcpy(direction, "west");
     }
@@ -492,10 +484,10 @@ void approachActivated(MCP23x17_GPIO gpio, int value)
     {
         char bellCommand[256];
         updateClockMessage("approaching stn.");
-        sprintf(bellCommand, "/home/wryan/bin/ringbell.sh %4.4s", direction);
+        sprintf(bellCommand, "%s/bin/ringbell.sh %4.4s", getenv("USERHOME"), direction);
         system(bellCommand);
 
-        accelerate(TRAM1, TROLLING, 1000);
+        accelerate(TROLLING, 1000);
         //    } else {
         //        accelerate(TRAM1, NORMAL, 1500);
     }
@@ -515,6 +507,8 @@ void switchTurnout()
 
 void stationActivated(MCP23x17_GPIO gpio, int value)
 {
+    char cmd[1024];
+
     if (value != 0)
     {
         return;
@@ -526,43 +520,46 @@ void stationActivated(MCP23x17_GPIO gpio, int value)
     {
         if (!stationLock[EAST])
         {
-            moveTram(TRAM1, STOP);
+            moveTram(STOP);
             stationLock[EAST] = true;
             stationLock[WEST] = false;
-            system("/home/wryan/bin/ringbell.sh east");
+            sprintf(cmd, "%s/bin/ringbell.sh east", getenv("USERHOME"));
+            system(cmd);
             updateClockMessage("east station-n");
             delay(stationDelay);
-            moveTram(TRAM1, WEST);
-            accelerate(TRAM1, NORMAL, 1500);
+            moveTram(WEST);
+            accelerate(NORMAL, 1500);
         }
     }
     else if (gpio == eastStation2Pin)
     {
         if (!stationLock[EAST])
         {
-            moveTram(TRAM1, STOP);
+            moveTram(STOP);
             stationLock[EAST] = true;
             stationLock[WEST] = false;
-            system("/home/wryan/bin/ringbell.sh east");
+            sprintf(cmd, "%s/bin/ringbell.sh east", getenv("USERHOME"));
+            system(cmd);
             updateClockMessage("east station-s");
             delay(stationDelay);
-            moveTram(TRAM1, WEST);
-            accelerate(TRAM1, NORMAL, 1500);
+            moveTram(WEST);
+            accelerate(NORMAL, 1500);
         }
     }
     else
     {
         if (!stationLock[WEST])
         {
-            moveTram(TRAM1, STOP);
+            moveTram(STOP);
             stationLock[EAST] = false;
             stationLock[WEST] = true;
-            system("/home/wryan/bin/ringbell.sh west");
+            sprintf(cmd, "%s/bin/ringbell.sh west", getenv("USERHOME"));
+            system(cmd);
             updateClockMessage("west station");
             delay(stationDelay);
-            moveTram(TRAM1, EAST);
+            moveTram(EAST);
             thread(switchTurnout).detach();
-            accelerate(TRAM1, NORMAL, 1500);
+            accelerate(NORMAL, 1500);
         }
     }
 }
@@ -575,7 +572,7 @@ void loadSpeed()
     int tram;
     int speed;
 
-    sprintf(filename, "%s/.tramSpeeds", getenv("HOME"));
+    sprintf(filename, "%s/.tramSpeeds", getenv("USERHOME"));
 
     FILE *speedFile = fopen(filename, "r");
 
@@ -595,13 +592,12 @@ void loadSpeed()
             fprintf(stderr, "unknonw speed type (%d) encountered while reading speed file %s\n", type, filename);
             continue;
         }
-        if (tram < 0 || tram > _TRAMS - 1)
-        {
+        if (tram != 1) {
             fprintf(stderr, "invalid tram number (%d) while reading speed file %s\n", tram, filename);
             continue;
         }
 
-        tramSpeedConfiguration[type][tram] = speed;
+        tramSpeedConfiguration[type] = speed;
     }
 
     fclose(speedFile);
@@ -611,16 +607,13 @@ void saveSpeed()
 {
     char filename[256];
 
-    sprintf(filename, "%s/.tramSpeeds", getenv("HOME"));
+    sprintf(filename, "%s/.tramSpeeds", getenv("USERHOME"));
 
     FILE *speedFile = fopen(filename, "w");
 
-    for (int tram = 0; tram < _TRAMS; ++tram)
+    for (int type = 0; type < _SPEED_TYPES; ++type)
     {
-        for (int type = 0; type < _SPEED_TYPES; ++type)
-        {
-            fprintf(speedFile, "%d,%d,%d\n", type, tram, tramSpeedConfiguration[type][tram]);
-        }
+        fprintf(speedFile, "%d,%d,%d\n", type, 0, tramSpeedConfiguration[type]);
     }
     fclose(speedFile);
 }
@@ -684,53 +677,51 @@ void *speedController(void *)
         unsigned long long startTime = currentTimeMillis();
         bool updateDisk = false;
 
-        for (int tram = 0; tram < _TRAMS; ++tram)
+        for (int type = 0; type < _SPEED_TYPES; ++type)
         {
-            for (int type = 0; type < _SPEED_TYPES; ++type)
+
+            int channel = tramSpeedInputChannel[type];
+            int speed = getSpeed(channel);
+
+            if (abs(speed - tramSpeedConfiguration[type]) > 2)
             {
 
-                int channel = tramSpeedInputChannel[type][tram];
-                int speed = getSpeed(channel);
-
-                if (abs(speed - tramSpeedConfiguration[type][tram]) > 2)
+                if (type == TROLLING || tramCurrentDirection == STOP)
                 {
-
-                    if (type == TROLLING || tramCurrentDirection[tram] == STOP)
+                    if (isAccelerating)
                     {
-                        if (isAccelerating[tram])
-                        {
-                            accelerateOverride[tram] = true;
-                            while (accelerateOverride[tram] == true)
-                                usleep(250);
-                        }
-                        int currentSpeed = tramCurrentSpeed[tram];
-                        int currentType = tramCurrentSpeedType[tram];
-                        updateDisk = true;
-                        printf("speedController::tram=%d type=%d speed=%d\n", tram, type, speed);
-                        tramSpeedConfiguration[type][tram] = speed;
-                        accelerate(tram, type, 0);
-                        tramCurrentSpeed[tram] = currentSpeed;
-                        tramCurrentSpeedType[tram] = currentType;
+                        accelerateOverride = true;
+                        while (accelerateOverride == true)
+                            usleep(250);
                     }
-                    else
+                    int currentSpeed = tramCurrentSpeed;
+                    int currentType = tramCurrentSpeedType;
+                    updateDisk = true;
+                    printf("speedController::type=%d speed=%d\n", type, speed);
+                    tramSpeedConfiguration[type] = speed;
+                    accelerate(type, 0);
+                    tramCurrentSpeed = currentSpeed;
+                    tramCurrentSpeedType = currentType;
+                }
+                else
+                {
+                    if (tramCurrentSpeedType == NORMAL)
                     {
-                        if (tramCurrentSpeedType[tram] == NORMAL)
+                        if (isAccelerating)
                         {
-                            if (isAccelerating[tram])
-                            {
-                                accelerateOverride[tram] = true;
-                                while (accelerateOverride[tram] == true)
-                                    usleep(100);
-                            }
-                            updateDisk = true;
-                            printf("speedController::tram=%d type=%d speed=%d\n", tram, type, speed);
-                            tramSpeedConfiguration[type][tram] = speed;
-                            accelerate(tram, type, 0);
+                            accelerateOverride = true;
+                            while (accelerateOverride == true)
+                                usleep(100);
                         }
+                        updateDisk = true;
+                        printf("speedController::type=%d speed=%d\n", type, speed);
+                        tramSpeedConfiguration[type] = speed;
+                        accelerate(type, 0);
                     }
                 }
             }
         }
+    
         if (updateDisk)
             saveSpeed();
 
@@ -841,16 +832,16 @@ bool setup()
     PCA9635_TYPE eastDirectionLEDPinType = pca9635_getTypeFromENV("MOVING_EAST_LED");
     PCA9635_TYPE westDirectionLEDPinType = pca9635_getTypeFromENV("MOVING_WEST_LED");
 
-    tramOutputSpeedControlPin[0] = pca9635_getLED(speedPinType);
-    tramDirectionPins[0][EAST] = pca9635_getLED(eastDirectionPinType);
-    tramDirectionPins[0][WEST] = pca9635_getLED(westDirectionPinType);
-    tramLEDPin[0][EAST] = pca9635_getLED(eastDirectionLEDPinType);
-    tramLEDPin[0][WEST] = pca9635_getLED(westDirectionLEDPinType);
-    tramLEDColor[0][EAST] = pca9635_getColor(eastDirectionLEDPinType);
-    tramLEDColor[0][WEST] = pca9635_getColor(westDirectionLEDPinType);
+    tramOutputSpeedControlPin = pca9635_getLED(speedPinType);
+    tramDirectionPins[EAST] = pca9635_getLED(eastDirectionPinType);
+    tramDirectionPins[WEST] = pca9635_getLED(westDirectionPinType);
+    tramLEDPin[EAST] = pca9635_getLED(eastDirectionLEDPinType);
+    tramLEDPin[WEST] = pca9635_getLED(westDirectionLEDPinType);
+    tramLEDColor[EAST] = pca9635_getColor(eastDirectionLEDPinType);
+    tramLEDColor[WEST] = pca9635_getColor(westDirectionLEDPinType);
 
-    tramSpeedInputChannel[TROLLING][0] = envGetInteger("TROLLING_SPEED_KNOB", "%d");
-    tramSpeedInputChannel[NORMAL][0] = envGetInteger("NORMAL_SPEED_KNOB", "%d");
+    tramSpeedInputChannel[TROLLING] = envGetInteger("TROLLING_SPEED_KNOB", "%d");
+    tramSpeedInputChannel[NORMAL] = envGetInteger("NORMAL_SPEED_KNOB", "%d");
 
     mcp23x17_x20_address = envGetInteger("MCP23017_ADDRESS", "%x");
     mcp23x17_x20_inta_pin = envGetInteger("MCP23017_INTA_PIN", "%d");
@@ -1185,7 +1176,7 @@ int main(int argc, char **argv)
     /*
         for (int tram = 0; tram < _TRAMS; ++tram) {
             for (int type = 0; type < _SPEED_TYPES; ++type) {
-                printf("tram=%d, type=%d, speed=%d\n", tram, type, tramSpeedConfiguration[type][tram]);
+                printf("tram=%d, type=%d, speed=%d\n", tram, type, tramSpeedConfiguration[type]);
             }
         }
     */

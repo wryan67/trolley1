@@ -1,7 +1,9 @@
 #!/bin/ksh
 # stop.sh
+[ "$SUDO_USER" = "" ] && USERID=$USER || USERID=$SUDO_USER
+USERHOME=/home/$USERID
 
-. ~/bin/env.pitrain.sh
+. $USERHOME/bin/env.pitrain.sh
 
 
 if [ "$1" = "-watch" ];then

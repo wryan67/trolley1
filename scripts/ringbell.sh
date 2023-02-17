@@ -1,5 +1,7 @@
 #!/bin/ksh
 set -a
+[ "$SUDO_USER" = "" ] && USERID=$USER || USERID=$SUDO_USER
+USERHOME=/home/$USERID
 
 if [ $# -lt 1 ];then
   echo "usage: ringbell.sh [east|west|both]"
@@ -26,7 +28,7 @@ fi
 if [ "$DIRECTION" = "both" ];then
   MODE=1
 else 
-  SOUND="/home/wryan/trolleyBell-${DIRECTION}.mp3"
+  SOUND="/home/$USERID/trolleyBell-${DIRECTION}.mp3"
   MODE=2
 fi
 
@@ -58,7 +60,7 @@ else
   while [ 1 ];do
     for DIRECTION in east west;do
       echo Ringing $DIRECTION bell...
-      SOUND="/home/wryan/trolleyBell-${DIRECTION}.mp3"
+      SOUND="/home/$USERID/trolleyBell-${DIRECTION}.mp3"
       nohup play -v $VOLUME $SOUND > /dev/null 2>&1 
     done
   done

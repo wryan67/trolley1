@@ -1,7 +1,9 @@
 #!/bin/ksh
 set -a
+[ "$SUDO_USER" = "" ] && USERID=$USER || USERID=$SUDO_USER
+USERHOME=/home/$USERID
 
-. ~/bin/env.`hostname -s`.sh
+. $USERHOME/bin/env.`hostname -s`.sh
 
 releaseLock() {
   rm -rf /tmp/start.lock
@@ -15,8 +17,8 @@ shutdown() {
 
 trap shutdown 0 1 2 3 9 15
 
-[ ! -f ~/bin/pitrain.i2cd ] && gpio i2cd > ~/bin/pitrain.i2cd
-I2CD_MASTER=`cat ~/bin/pitrain.i2cd | awk '{print $1}'`
+[ ! -f $USERHOME/pitrain.i2cd ] && gpio i2cd > $USERHOME/pitrain.i2cd
+I2CD_MASTER=`cat $USERHOME/pitrain.i2cd | awk '{print $1}'`
 I2CD_CURR=`gpio i2cd | awk '{print $1}'`
 
 if [ "$I2CD_CURR" != "$I2CD_MASTER" ];then echo
@@ -31,7 +33,7 @@ if [ $RET = 0 ];then
   CT=`ps -ef | grep -i "streetCar" | grep -v grep | wc -l`
 
   if [ $CT -lt 1 ];then
-    ~/bin/trolley.sh
+    $USERHOME/bin/trolley.sh
   fi
 else
   echo "start is locked"

@@ -18,11 +18,12 @@ if [ $# -lt 1 ];then
 fi
 
 SERVER=$1
-TARGET=$SERVER:bin
+TARGET=$SERVER:bin/
 
 make clean || exit 2
 make       || exit 2
 
-ssh $SERVER bin/stop.sh   || exit 2
-scp bin/streetcar $TARGET || exit 2
-ssh $SERVER bin/start.sh  || exit 2
+ssh $SERVER bin/stop.sh         || exit 2
+ssh $SERVER rm -f bin/streetcar || exit 2
+scp bin/streetcar $TARGET       || exit 2
+ssh $SERVER bin/start.sh        || exit 2

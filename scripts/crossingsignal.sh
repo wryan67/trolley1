@@ -1,7 +1,9 @@
 #!/bin/ksh
 set -a
+[ "$SUDO_USER" = "" ] && USERID=$USER || USERID=$SUDO_USER
+USERHOME=/home/$USERID
 
-. ~/bin/env.pitrain.sh
+. $USERHOME/env.pitrain.sh
 
 DURATION=$1
 PCA9635_ADDR="1f"

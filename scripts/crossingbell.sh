@@ -1,9 +1,11 @@
 #!/bin/ksh
 set -a
+[ "$SUDO_USER" = "" ] && USERID=$USER || USERID=$SUDO_USER
+USERHOME=/home/$USERID
 
 VOLUME=$1
 DURATION=$2
-SOUND="/home/wryan/rr-crossing-bells.48k.wav"
+SOUND="$USERHOME/rr-crossing-bells.48k.wav"
 
 if [ "$VOLUME" = "" ];then
   VOLUME=2.0
@@ -35,5 +37,6 @@ fi
 #amixer -c1 scontrols 
 #amixer -c3 sset Speaker '100%' > /dev/null 2>&1
 
+echo playing...
 play -v $VOLUME $SOUND fade "0:0" "$DURATION" "0:1.5" > /dev/null 2>&1
 # > /dev/null 2>&1 &
