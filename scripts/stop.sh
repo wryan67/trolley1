@@ -1,6 +1,6 @@
 #!/bin/ksh
 # stop.sh
-[ "$SUDO_USER" = "" ] && USERID=$USER || USERID=$SUDO_USER
+[ "$SUDO_USER" = "" ] && USERID=$LOGNAME || USERID=$SUDO_USER
 USERHOME=/home/$USERID
 
 . $USERHOME/bin/env.pitrain.sh
