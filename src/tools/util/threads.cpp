@@ -11,12 +11,3 @@ pthread_t threadCreate(void *(*method)(void *), const char *description) {
 	pthread_detach(threadId);
 	return threadId;
 }
-
-unsigned long long currentTimeMillis() {
-	struct timeval currentTime;
-	gettimeofday(&currentTime, NULL);
-
-	return
-		(unsigned long long)(currentTime.tv_sec) * 1000 +
-		(unsigned long long)(currentTime.tv_usec) / 1000;
-}

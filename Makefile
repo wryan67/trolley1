@@ -16,7 +16,7 @@ OBJ_2      := $(addprefix $(DIR_OBJ),$(OBJ_O))
 CC       := g++
 CFLAGS   := -c -O2 -D $(USELIB) -std=gnu++17 
 DFLAGS   := -c -O2 -D $(USELIB)
-LDFLAGS  := -pthread -lm -luuid -lwiringPi -lwiringPiDev -lwiringPiLCD101rpi -lwiringPiPCA9635rpi -lwiringPiMCP23x17rpi -lwiringPiADS1115rpi -lwiringPiPca9685
+LDFLAGS  := -pthread -lm -luuid -llog4pi -lwiringPi -lwiringPiDev -lwiringPiLCD101rpi -lwiringPiPCA9635rpi -lwiringPiMCP23x17rpi -lwiringPiADS1115rpi -lwiringPiPca9685
 SOURCES  := 
 
 TOOLS    := $(wildcard ${DIR_tools}/*.c*)

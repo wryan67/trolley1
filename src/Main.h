@@ -9,6 +9,7 @@
 #include <mcp23x17rpi.h>
 #include <ads1115rpi.h>
 #include <pca9635rpi.h>
+#include <log4pi.h>
 
 #include "threads.h"
 #include "tcpservice.h"

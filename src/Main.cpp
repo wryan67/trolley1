@@ -4,7 +4,9 @@
 #include <thread>
 
 using namespace std;
+using namespace common::utility;
 
+Logger logger{"main"};
 unordered_map<int, long long> lastActivation;
 
 float crossingBellVolume = 10.0;
@@ -124,7 +126,7 @@ void accelerate(int type, int ms)
 {
     if (isAccelerating)
     {
-        printf("accelerate:: requested acceleration, but was already accelerating\n");
+        logger.info("accelerate:: requested acceleration, but was already accelerating");
         accelerateOverride = true;
         while (isAccelerating)
             usleep(100);
@@ -136,7 +138,7 @@ void accelerate(int type, int ms)
     int vector;
     int stepDelay = 0;
 
-    printf("accelerate:: cst=%d, rst=%d, currentSpeed=%d, desiredSpeed=%d, delay=%d; ",
+    logger.info("accelerate:: cst=%d, rst=%d, currentSpeed=%d, desiredSpeed=%d, delay=%d; ",
             tramCurrentSpeedType, type, tramCurrentSpeed, desiredSpeed, ms);
 
     tramCurrentSpeedType = type;
@@ -144,7 +146,7 @@ void accelerate(int type, int ms)
     if (desiredSpeed == tramCurrentSpeed)
     {
         isAccelerating = false;
-        printf("no change\n");
+        logger.info("no change");
         return;
     }
     if (desiredSpeed > tramCurrentSpeed)
@@ -167,7 +169,7 @@ void accelerate(int type, int ms)
         vector = desiredSpeed - tramCurrentSpeed;
     }
 
-    printf(" vecotor = %2d, step delay=%d\n", vector, stepDelay);
+    logger.info("vector = %2d, step delay=%d", vector, stepDelay);
 
     while (!accelerateOverride && tramCurrentSpeed != desiredSpeed)
     {
@@ -263,7 +265,7 @@ void *crossingGate(void *)
     if (crossingGateTrigger++ % 2 == 0)
     {
         // down
-        printf("millis=%9d closing crossing gate\n", millis());
+        logger.info("millis=%9d closing crossing gate", millis());
         fflush(stdout);
 
         showCrossingSignal = true;
@@ -278,7 +280,7 @@ void *crossingGate(void *)
     else
     {
         // up
-        printf("millis=%9d opening crossing gate\n", millis());
+        logger.info("millis=%9d opening crossing gate", millis());
         fflush(stdout);
 
         showCrossingSignal = false;
@@ -317,7 +319,7 @@ void crossingActivated(MCP23x17_GPIO gpio, int value)
         crossingGateTrigger = 0; // approaching
     }
 
-    printf("millis=%9d crossing gate state=%04x\n", millis(), gpio);
+    logger.info("millis=%9d crossing gate state=%04x", millis(), gpio);
     fflush(stdout);
     threadCreate(crossingGate, "crossing gate");
 }
@@ -326,7 +328,7 @@ int envGetInteger(const char *var, const char *format)
 {
     if (!var)
     {
-        fprintf(stderr, "Could not locate NULL in the environment variables\n");
+        logger.error("Could not locate NULL in the environment variables");
         exit(EXIT_FAILURE);
     }
     char *buf = getenv(var);
@@ -343,7 +345,7 @@ int envGetInteger(const char *var, const char *format)
     }
     else
     {
-        fprintf(stderr, "Could not locate '%s' in the environment variables\n", var);
+        logger.error("Could not locate '%s' in the environment variables", var);
         exit(EXIT_FAILURE);
     }
 }
@@ -370,7 +372,7 @@ bool startStopButtonAction(char *message)
 
     if (message)
     {
-        printf("%s\n", message);
+        logger.info("%s", message);
     }
 
     if (isRunning)
@@ -387,7 +389,7 @@ bool startStopButtonAction(char *message)
     stationLock[EAST] = false;
     stationLock[WEST] = false;
 
-    printf("turn LCD LED lights on\n");
+    logger.info("turn LCD LED lights on");
     delay(10);
     lcdLED(1);
     delay(100);
@@ -400,7 +402,7 @@ bool startStopButtonAction(char *message)
     }
     if (!mcp23x17_digitalRead(eastStation1Pin) && !mcp23x17_digitalRead(westStationPin))
     {
-        printf("both east and west stations are blocked, exiting\n");
+        logger.info("both east and west stations are blocked, exiting");
         exit(9);
     }
 
@@ -477,7 +479,7 @@ void approachActivated(MCP23x17_GPIO gpio, int value)
         strcpy(direction, "west");
     }
 
-    printf("approaching %s station; activated pin-%d; occured at %llu ms; approaching=%d\n", direction, mcp23x17_getPin(gpio), currentTimeMillis(), approaching);
+    logger.info("approaching %s station; activated pin-%d; occured at %llu ms; approaching=%d", direction, mcp23x17_getPin(gpio), currentTimeMillis(), approaching);
     fflush(stdout);
 
     if (approaching)
@@ -513,7 +515,7 @@ void stationActivated(MCP23x17_GPIO gpio, int value)
     {
         return;
     }
-    printf("station pin-%d tripped with value %d; occured at %llu ms\n", mcp23x17_getPin(gpio), value, currentTimeMillis());
+    logger.info("station pin-%d tripped with value %d; occured at %llu ms", mcp23x17_getPin(gpio), value, currentTimeMillis());
     fflush(stdout);
 
     if (gpio == eastStation1Pin)
@@ -589,11 +591,11 @@ void loadSpeed()
 
         if (type < 0 || type > _SPEED_TYPES)
         {
-            fprintf(stderr, "unknonw speed type (%d) encountered while reading speed file %s\n", type, filename);
+            logger.error("unknonw speed type (%d) encountered while reading speed file %s", type, filename);
             continue;
         }
         if (tram != 1) {
-            fprintf(stderr, "invalid tram number (%d) while reading speed file %s\n", tram, filename);
+            logger.error("invalid tram number (%d) while reading speed file %s", tram, filename);
             continue;
         }
 
@@ -630,7 +632,7 @@ int getSpeed(int channel)
 
     if (channel < 0 || channel > 3)
     {
-        fprintf(stderr, "getSpeed channel(%d) out of range\n", channel);
+        logger.error("getSpeed channel(%d) out of range", channel);
         exit(0);
     }
 
@@ -697,7 +699,7 @@ void *speedController(void *)
                     int currentSpeed = tramCurrentSpeed;
                     int currentType = tramCurrentSpeedType;
                     updateDisk = true;
-                    printf("speedController::type=%d speed=%d\n", type, speed);
+                    logger.info("speedController::type=%d speed=%d", type, speed);
                     tramSpeedConfiguration[type] = speed;
                     accelerate(type, 0);
                     tramCurrentSpeed = currentSpeed;
@@ -714,7 +716,7 @@ void *speedController(void *)
                                 usleep(100);
                         }
                         updateDisk = true;
-                        printf("speedController::type=%d speed=%d\n", type, speed);
+                        logger.info("speedController::type=%d speed=%d", type, speed);
                         tramSpeedConfiguration[type] = speed;
                         accelerate(type, 0);
                     }
@@ -732,7 +734,7 @@ void *speedController(void *)
         }
         else
         {
-            printf("polling input speed channels took longer than 100 ms; acutal=%d\n", elapsed);
+            logger.info("polling input speed channels took longer than 100 ms; acutal=%d", elapsed);
         }
     }
 }
@@ -797,7 +799,7 @@ bool setup()
 
     if (wiringPiSetup() != 0)
     {
-        fprintf(stderr, "Wiring Pi could not be initialized\n");
+        logger.error("Wiring Pi could not be initialized");
         return false;
     }
 
@@ -850,7 +852,7 @@ bool setup()
     mcp23x17_x20_handle = mcp23x17_setup(0, mcp23x17_x20_address, mcp23x17_x20_inta_pin, mcp23x17_x20_intb_pin);
     if (mcp23x17_x20_handle < 0)
     {
-        fprintf(stderr, "mcp23017 at address 0x20 could not be initialized\n");
+        logger.error("mcp23017 at address 0x20 could not be initialized");
         return false;
     }
 
@@ -899,7 +901,7 @@ bool setup()
     ads1115Handle = wiringPiI2CSetup(ads1115Address);
     if (ads1115Handle < 0)
     {
-        printf("ads1115 initialization failed for address 0x%02x\n", ads1115Address);
+        logger.info("ads1115 initialization failed for address 0x%02x", ads1115Address);
         return false;
     }
 
@@ -907,7 +909,7 @@ bool setup()
     pca9635Handle = pca9635Setup(pca9635Address);
     if (pca9635Handle < 0)
     {
-        printf("pca9635 initialization failed for address 0x%02x\n", pca9635Address);
+        logger.info("pca9635 initialization failed for address 0x%02x", pca9635Address);
         return false;
     }
 
@@ -923,7 +925,7 @@ bool setup()
     lcdHandle = lcdSetup(lcdAddress);
     if (lcdHandle < 0)
     {
-        fprintf(stderr, "lcdInit failed\n");
+        logger.error("lcdInit failed");
         return false;
     }
 
@@ -995,7 +997,7 @@ void updateClockMessage(const char *msg)
 
             sprintf(&tmpstr2[p1], "%s", clockMessage);
 
-            printf("lcdMessage: '%s'\n", tmpstr2);
+            logger.info("lcdMessage: '%s'", tmpstr2);
             lcdPrintf(lcdHandle, "%-16.16s", tmpstr2);
         }
         else
@@ -1013,7 +1015,7 @@ const char *executeServiceCommand(const char *command)
 {
     if (serviceDebug)
     {
-        printf("remote command: %s\n", command);
+        logger.info("remote command: %s", command);
     }
 
     if (strcasecmp(command, "quit") == 0)
@@ -1176,7 +1178,7 @@ int main(int argc, char **argv)
     /*
         for (int tram = 0; tram < _TRAMS; ++tram) {
             for (int type = 0; type < _SPEED_TYPES; ++type) {
-                printf("tram=%d, type=%d, speed=%d\n", tram, type, tramSpeedConfiguration[type]);
+                logger.info("tram=%d, type=%d, speed=%d", tram, type, tramSpeedConfiguration[type]);
             }
         }
     */
@@ -1187,7 +1189,7 @@ int main(int argc, char **argv)
     PCA9635_TYPE systemReadyPinType = pca9635_getTypeFromENV("SYSTEM_READY_LED");
     pca9635SetBrightness(pca9635Handle, systemReadyPinType, WHITE, 10);
 
-    printf("system ready\n");
+    logger.info("system ready");
 
     while (true)
     {

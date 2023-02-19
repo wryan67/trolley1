@@ -14,4 +14,3 @@
 
 pthread_t threadCreate(void *(*method)(void *), const char *description);
 
-unsigned long long currentTimeMillis();

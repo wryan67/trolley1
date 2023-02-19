@@ -19,8 +19,13 @@
 #include <stdexcept>
 #include <iostream>
 #include <thread>
+#include <log4pi.h>
 
 using namespace std;
+using namespace common::utility;
+
+Logger tcpLogger{"tcpservice"};
+
 
 #include "../include/tcpservice.h"
 
@@ -28,7 +33,7 @@ void startTCPService() {
     pthread_t threadId;
     int status = pthread_create(&threadId, NULL, tcpInterface, NULL);
     if (status != 0) {
-        fprintf(stderr, "tcpService::thread create failed %d--%s\n", status, strerror(errno)); fflush(stderr);
+        tcpLogger.error("tcpService::thread create failed %d--%s", status, strerror(errno)); fflush(stderr);
         exit(9);
     }
     pthread_detach(threadId);
@@ -46,7 +51,7 @@ void *tcpInterface(void *) {
 
 	socketDescriptor = socket(AF_INET, SOCK_STREAM, 0);
 	if (socketDescriptor < 0) {
-		printf("Could not create socket\n");
+		tcpLogger.error("Could not create socket");
 		return NULL;
 	}
 
@@ -56,25 +61,25 @@ void *tcpInterface(void *) {
 
 	int on = 1;
 	if (setsockopt(socketDescriptor, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
-		printf("could not set socket options on port %d\n", servicePort);
+		tcpLogger.error("could not set socket options on port %d", servicePort);
 		return NULL;
 	}
 	//    if (setsockopt(socketDescriptor, IPPROTO_TCP, TCP_CORK,&on,sizeof(on))<0) {
-	//        printf("could not set socket options on port %d\n",servicePort);
+	//        tcpLogger.error("could not set socket options on port %d",servicePort);
 	//        return 9;
 	//    }
 
 	if (bind(socketDescriptor, (struct sockaddr *)&server, sizeof(server)) < 0) {
-		printf("bind failed on port %d\n", servicePort);
+		tcpLogger.error("bind failed on port %d", servicePort);
 		return NULL;
 	}
 
 	if (listen(socketDescriptor, SOMAXCONN) < 0) {
-		printf("failed to listen on port %d\n", servicePort);  fflush(stdout);
+		tcpLogger.error("failed to listen on port %d", servicePort);  fflush(stdout);
 		return NULL;
 	}
 
-	printf("listening on port %d\n", servicePort); fflush(stdout);
+	tcpLogger.info("listening on port %d", servicePort); fflush(stdout);
 	socketSize = sizeof(struct sockaddr_in);
 
 	while (newSocket = accept(socketDescriptor, (struct sockaddr *)&client, (socklen_t*)&socketSize)) {
@@ -100,7 +105,7 @@ void *tcpInterface(void *) {
 
 
 void signal_SIGPIPE_handler(int signum) {
-	printf("broken pipe\n"); fflush(stdout);
+	tcpLogger.warn("broken pipe");
 }
 
 void prompt(int clientSocket) {
@@ -117,7 +122,7 @@ void serviceChildMethod(int clientSocket)
 
 	int recvSize;
 
-	fprintf(stderr,"clinet connected\n"); fflush(stdout);
+	tcpLogger.info("client connected"); 
 	prompt(clientSocket);
 
 	while ((recvSize = recv(clientSocket, tmpstr, sizeof(tmpstr), 0)) > 0) {
@@ -139,9 +144,9 @@ void serviceChildMethod(int clientSocket)
 	}
 
 	if (recvSize >= 0) {
-		if (serviceDebug) fprintf(stderr,"clinet disconnected\n"); fflush(stdout);
+		if (serviceDebug) tcpLogger.info("clinet disconnected");
 	} else {
-		fprintf(stderr,"client departed unexpectedly 200\n"); fflush(stdout);
+		tcpLogger.warn("client departed unexpectedly 200");
 	}
 	close(clientSocket);
 }
