@@ -38,7 +38,7 @@ int mcp23x17_x20_intb_pin;
 
 
 MCP23x17_GPIO startStopButtonPin;
-MCP23x17_GPIO trollingLockPin;
+// MCP23x17_GPIO trollingLockPin;
 
 MCP23x17_GPIO eastApproach1Pin;
 MCP23x17_GPIO eastStation1Pin;
@@ -53,6 +53,7 @@ MCP23x17_GPIO eastCrossingPin;
 MCP23x17_GPIO westCrossingPin;
 
 MCP23x17_GPIO accessoryLights;
+MCP23x17_GPIO accessorySwitch;
 
 
 static volatile int crossingGateTrigger = 0;
@@ -296,6 +297,13 @@ void *crossingGate(void *)
     }
 
     pthread_exit(NULL);
+}
+
+void accessoryToggled(MCP23x17_GPIO gpio, int value)
+{
+    lcdLED(value);
+    showCrossingSignal = value;
+    mcp23x17_digitalWrite(accessoryLights, !value);
 }
 
 void crossingActivated(MCP23x17_GPIO gpio, int value)
@@ -857,7 +865,7 @@ bool setup()
     }
 
     startStopButtonPin = getEnvMCP23x17_GPIO("START_STOP_BUTTON");
-    trollingLockPin = getEnvMCP23x17_GPIO("TROLLING_LOCK");
+    //trollingLockPin = getEnvMCP23x17_GPIO("TROLLING_LOCK");
 
     eastApproach1Pin = getEnvMCP23x17_GPIO("EAST_APPROACH1");
     eastStation1Pin = getEnvMCP23x17_GPIO("EAST_STATION1");
@@ -872,14 +880,13 @@ bool setup()
     westCrossingPin = getEnvMCP23x17_GPIO("WEST_CROSSING");
 
     accessoryLights = getEnvMCP23x17_GPIO("ACCESSORY_LIGHTS");
+    accessorySwitch = getEnvMCP23x17_GPIO("ACCESSORY_SWITCH");
 
     switchTurnout();
     delay(500);
     switchTurnout();
     delay(500);
     switchTurnout();
-
-
 
     mcp23x17_setPinInputMode(startStopButtonPin, TRUE, startStopButton);
 
@@ -896,6 +903,12 @@ bool setup()
     mcp23x17_setPinInputMode(westCrossingPin, TRUE, crossingActivated);
 
     mcp23x17_setPinOutputMode(accessoryLights, 0);
+    mcp23x17_setPinInputMode(accessorySwitch, TRUE, accessoryToggled);
+
+    int lightValue = mcp23x17_digitalRead(accessorySwitch);
+    logger.info("accessory switch value: %d", lightValue);
+    accessoryToggled(accessorySwitch, lightValue);
+
 
     ads1115Address = envGetInteger("ADS1115_ADDRESS", "%x");
     ads1115Handle = wiringPiI2CSetup(ads1115Address);
